@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { LoaderCircleIcon, SparklesIcon } from "lucide-react";
 import { analyzeSource, type AnalyzeSourceResult } from "@/app/actions/analysis";
+import { Button } from "@/components/ui/button";
 
 type Props = {
   sourceId: string;
@@ -38,21 +40,21 @@ export function AnalyzeSourceButton({
 
   return (
     <div className="flex flex-col items-end gap-1">
-      <button
+      <Button
         type="button"
+        variant="outline"
+        size="sm"
         onClick={handleClick}
         disabled={disabled || pending}
         aria-busy={pending}
-        className="inline-flex h-8 items-center justify-center gap-2 rounded-lg border border-zinc-300 bg-white px-3 text-xs font-medium text-zinc-900 transition-colors hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
       >
-        {pending && (
-          <span
-            aria-hidden
-            className="size-3.5 animate-spin rounded-full border-2 border-zinc-900/20 border-t-zinc-900 dark:border-zinc-100/20 dark:border-t-zinc-100"
-          />
+        {pending ? (
+          <LoaderCircleIcon data-icon="inline-start" className="animate-spin" />
+        ) : (
+          <SparklesIcon data-icon="inline-start" />
         )}
         {pending ? "Analyzing…" : label}
-      </button>
+      </Button>
 
       <div aria-live="polite" className="text-right text-xs">
         {result && !pending && !(!result.ok && result.message === persistedError) && (
@@ -66,7 +68,7 @@ export function AnalyzeSourceButton({
 function ResultMessage({ result }: { result: AnalyzeSourceResult }) {
   if (!result.ok) {
     return (
-      <p role="alert" className="max-w-xs text-red-600 dark:text-red-400">
+      <p role="alert" className="max-w-xs text-destructive">
         {result.message}
       </p>
     );
@@ -74,10 +76,10 @@ function ResultMessage({ result }: { result: AnalyzeSourceResult }) {
 
   const summary = `${result.assumptionCount} assumptions, ${result.gapCount} gaps, ${result.contradictionCount} contradictions`;
   return (
-    <p className="max-w-xs text-emerald-700 dark:text-emerald-400">
+    <p className="max-w-xs text-muted-foreground">
       {result.alreadyAnalyzed ? `Already analyzed: ${summary}.` : `Found ${summary}.`}
       {result.rejectedCount > 0 && (
-        <span className="block text-amber-700 dark:text-amber-400">
+        <span className="block font-medium text-foreground">
           {result.rejectedCount} finding{result.rejectedCount === 1 ? "" : "s"} rejected for invalid
           source references.
         </span>

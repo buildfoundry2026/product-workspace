@@ -1,67 +1,100 @@
 import Link from "next/link";
+import { ChevronRightIcon, CircleAlertIcon, PlusIcon } from "lucide-react";
 import { requireOwner } from "@/utils/supabase/require-owner";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { ProjectActions } from "./project-actions";
 
 export default async function HomePage() {
   const { supabase } = await requireOwner();
   const { data: projects, error } = await supabase
     .from("projects")
-    .select("id, name, status, created_at")
+    .select("id, name, description, status, created_at")
     .order("created_at", { ascending: false });
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-          Projects
-        </h1>
-        <Link
-          href="/projects/new"
-          className="inline-flex h-9 items-center rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
-        >
-          New project
-        </Link>
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-semibold tracking-tight">Projects</h1>
+          <p className="text-sm text-muted-foreground">
+            Discovery workspaces built from your business briefs.
+          </p>
+        </div>
+        <Button asChild>
+          <Link href="/projects/new">
+            <PlusIcon data-icon="inline-start" />
+            New project
+          </Link>
+        </Button>
       </div>
 
       {error ? (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-          Could not load projects. Refresh to try again.
-        </p>
+        <Alert variant="destructive">
+          <CircleAlertIcon />
+          <AlertTitle>Could not load projects</AlertTitle>
+          <AlertDescription>Refresh to try again.</AlertDescription>
+        </Alert>
       ) : projects.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-zinc-300 px-6 py-16 text-center dark:border-zinc-700">
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            No projects yet. Create one by pasting a business brief.
-          </p>
-          <Link
-            href="/projects/new"
-            className="text-sm font-medium text-zinc-900 underline underline-offset-4 dark:text-zinc-100"
-          >
-            Create your first project
-          </Link>
-        </div>
-      ) : (
-        <ul className="divide-y divide-zinc-200 overflow-hidden rounded-xl border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-950">
-          {projects.map((project) => (
-            <li key={project.id}>
-              <Link
-                href={`/projects/${project.id}`}
-                className="flex items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-900"
-              >
-                <span className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                  {project.name}
-                </span>
-                <span className="shrink-0 text-xs text-zinc-500">
-                  {project.status === "archived" ? "Archived · " : ""}
-                  {new Date(project.created_at).toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "short",
-                    day: "numeric",
-                  })}
-                </span>
+        <Card className="items-center border border-dashed py-16 text-center ring-0">
+          <CardContent className="flex flex-col items-center gap-3">
+            <p className="text-sm text-muted-foreground">
+              No projects yet. Create one by pasting a business brief.
+            </p>
+            <Button asChild variant="outline">
+              <Link href="/projects/new">
+                <PlusIcon data-icon="inline-start" />
+                Create your first project
               </Link>
-            </li>
-          ))}
-        </ul>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="gap-0 py-0">
+          <ul className="divide-y">
+            {projects.map((project) => (
+              <li
+                key={project.id}
+                className="flex items-center gap-1 pr-2 transition-colors hover:bg-muted/60"
+              >
+                <Link
+                  href={`/projects/${project.id}`}
+                  className="group flex min-w-0 flex-1 items-center justify-between gap-4 py-3 pl-4 outline-none focus-visible:bg-muted/60"
+                >
+                  <span className="flex min-w-0 flex-col gap-0.5">
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className="truncate font-medium">{project.name}</span>
+                      {project.status === "archived" && <Badge variant="outline">Archived</Badge>}
+                    </span>
+                    {project.description && (
+                      <span className="truncate text-xs text-muted-foreground">
+                        {project.description}
+                      </span>
+                    )}
+                  </span>
+                  <span className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
+                    {formatDate(project.created_at)}
+                    <ChevronRightIcon className="size-4 transition-transform group-hover:translate-x-0.5" />
+                  </span>
+                </Link>
+                <ProjectActions
+                  project={{ id: project.id, name: project.name, description: project.description }}
+                />
+              </li>
+            ))}
+          </ul>
+        </Card>
       )}
     </div>
   );
+}
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 }

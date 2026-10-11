@@ -1,16 +1,30 @@
 "use client";
 
 import { useId, useState, useTransition } from "react";
+import { CheckIcon, CircleCheckIcon, LoaderCircleIcon } from "lucide-react";
 import { resolveGap } from "@/app/actions/gaps";
 import type { GapSeverity, UnresolvedGap } from "@/lib/gaps/queries";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 const MAX_ANSWER_CHARS = 20_000;
 
-const SEVERITY_STYLES: Record<GapSeverity, string> = {
-  critical: "bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300",
-  high: "bg-orange-100 text-orange-800 dark:bg-orange-950/60 dark:text-orange-300",
-  medium: "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300",
-  low: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
+/** Monochrome severity scale; only critical uses the destructive accent. */
+const SEVERITY_VARIANTS: Record<GapSeverity, React.ComponentProps<typeof Badge>["variant"]> = {
+  critical: "destructive",
+  high: "default",
+  medium: "secondary",
+  low: "outline",
 };
 
 const GAP_TYPE_LABELS: Record<UnresolvedGap["gap_type"], string> = {
@@ -37,12 +51,17 @@ export function GapsList({ gaps, archived }: { gaps: UnresolvedGap[]; archived: 
 
   return (
     <div className="flex flex-col gap-3">
-      <p aria-live="polite" className="text-sm text-emerald-700 empty:hidden dark:text-emerald-400">
-        {notice}
-      </p>
+      <div aria-live="polite">
+        {notice && (
+          <Alert role="status">
+            <CircleCheckIcon />
+            <AlertDescription className="text-foreground">{notice}</AlertDescription>
+          </Alert>
+        )}
+      </div>
 
       {visible.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-zinc-300 px-4 py-8 text-center text-sm text-zinc-500 dark:border-zinc-700">
+        <p className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
           No open questions. Run analysis on a source to surface gaps.
         </p>
       ) : (
@@ -96,65 +115,57 @@ function GapCard({
   }
 
   return (
-    <article className="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
-      <div className="flex flex-wrap items-center gap-2">
-        <span
-          className={`rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${SEVERITY_STYLES[gap.severity]}`}
-        >
-          {gap.severity}
-        </span>
-        <span className="text-xs text-zinc-500">{GAP_TYPE_LABELS[gap.gap_type]}</span>
-        {gap.category && (
-          <span className="text-xs capitalize text-zinc-500">· {gap.category}</span>
-        )}
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{gap.question}</h3>
-        {gap.description && (
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">{gap.description}</p>
-        )}
-      </div>
-
-      <form onSubmit={handleSubmit} className="flex flex-col gap-2" aria-busy={pending}>
-        <label htmlFor={fieldId} className="sr-only">
-          Answer to: {gap.question}
-        </label>
-        <textarea
-          id={fieldId}
-          value={answer}
-          onChange={(e) => setAnswer(e.target.value)}
-          disabled={archived || pending}
-          rows={3}
-          maxLength={MAX_ANSWER_CHARS}
-          placeholder={archived ? "This project is archived." : "Write your answer…"}
-          aria-invalid={!!error}
-          aria-describedby={error ? `${fieldId}-error` : undefined}
-          className="w-full resize-y rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder:text-zinc-600 dark:focus:ring-zinc-100/10"
-        />
-        <div className="flex items-center justify-between gap-3">
-          <p
-            id={`${fieldId}-error`}
-            role={error ? "alert" : undefined}
-            className="text-xs text-red-600 dark:text-red-400"
-          >
-            {error}
-          </p>
-          <button
-            type="submit"
-            disabled={!canSubmit}
-            className="inline-flex h-8 shrink-0 items-center justify-center gap-2 rounded-lg bg-zinc-900 px-3 text-xs font-medium text-white transition-colors hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
-          >
-            {pending && (
-              <span
-                aria-hidden
-                className="size-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white dark:border-zinc-900/30 dark:border-t-zinc-900"
-              />
-            )}
-            {pending ? "Resolving…" : "Resolve"}
-          </button>
+    <Card>
+      <CardHeader>
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <Badge variant={SEVERITY_VARIANTS[gap.severity]} className="capitalize">
+            {gap.severity}
+          </Badge>
+          <span>{GAP_TYPE_LABELS[gap.gap_type]}</span>
+          {gap.category && <span className="capitalize">· {gap.category}</span>}
         </div>
-      </form>
-    </article>
+        <CardTitle className="mt-1">
+          <h3>{gap.question}</h3>
+        </CardTitle>
+        {gap.description && <CardDescription>{gap.description}</CardDescription>}
+      </CardHeader>
+
+      <CardContent>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-2" aria-busy={pending}>
+          <Label htmlFor={fieldId} className="sr-only">
+            Answer to: {gap.question}
+          </Label>
+          <Textarea
+            id={fieldId}
+            value={answer}
+            onChange={(e) => setAnswer(e.target.value)}
+            disabled={archived || pending}
+            rows={3}
+            maxLength={MAX_ANSWER_CHARS}
+            placeholder={archived ? "This project is archived." : "Write your answer…"}
+            aria-invalid={!!error}
+            aria-describedby={error ? `${fieldId}-error` : undefined}
+            className="min-h-20 resize-y"
+          />
+          <div className="flex items-center justify-between gap-3">
+            <p
+              id={`${fieldId}-error`}
+              role={error ? "alert" : undefined}
+              className="text-xs text-destructive"
+            >
+              {error}
+            </p>
+            <Button type="submit" size="sm" disabled={!canSubmit}>
+              {pending ? (
+                <LoaderCircleIcon data-icon="inline-start" className="animate-spin" />
+              ) : (
+                <CheckIcon data-icon="inline-start" />
+              )}
+              {pending ? "Resolving…" : "Resolve"}
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
   );
 }

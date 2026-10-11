@@ -1,7 +1,26 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import {
+  ArrowLeftIcon,
+  CircleAlertIcon,
+  CircleCheckIcon,
+  FileTextIcon,
+  ListChecksIcon,
+  LoaderCircleIcon,
+} from "lucide-react";
 import { z } from "zod";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { requireOwner } from "@/utils/supabase/require-owner";
 import { isAnalysisClaimStale } from "@/lib/analysis/claims";
 import { AnalyzeSourceButton } from "./analyze-source-button";
@@ -65,105 +84,130 @@ export default async function ProjectPage({
   const project = projectResult.data;
   const justCreated = query.created === "1";
 
+  const archived = project.status === "archived";
+  const sources = sourcesResult.data ?? [];
+
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex flex-col gap-2">
-        <Link
-          href="/"
-          className="text-sm text-zinc-500 transition-colors hover:text-zinc-900 dark:hover:text-zinc-100"
-        >
-          ← All projects
-        </Link>
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-            {project.name}
-          </h1>
-          {project.status === "archived" && (
-            <span className="rounded-full bg-zinc-200 px-2.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-              Archived
-            </span>
-          )}
-          <Link
-            href={`/projects/${project.id}/prd`}
-            className="ml-auto inline-flex h-9 items-center justify-center rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
-          >
-            Product requirements (PRD) →
+      <div className="flex flex-col gap-3">
+        <Button asChild variant="ghost" size="sm" className="-ml-2 w-fit text-muted-foreground">
+          <Link href="/">
+            <ArrowLeftIcon data-icon="inline-start" />
+            All projects
           </Link>
+        </Button>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex flex-col gap-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-2xl font-semibold tracking-tight">{project.name}</h1>
+              {archived && <Badge variant="outline">Archived</Badge>}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Created {formatDate(project.created_at)}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline">
+              <Link href={`/projects/${project.id}/requirements`}>
+                <ListChecksIcon data-icon="inline-start" />
+                Requirements
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link href={`/projects/${project.id}/prd`}>
+                <FileTextIcon data-icon="inline-start" />
+                Product requirements (PRD)
+              </Link>
+            </Button>
+          </div>
         </div>
-        <p className="text-sm text-zinc-500">Created {formatDate(project.created_at)}</p>
       </div>
 
       {justCreated && (
-        <div
-          role="status"
-          className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300"
-        >
-          Project created and brief ingested successfully.
-        </div>
+        <Alert role="status">
+          <CircleCheckIcon />
+          <AlertTitle>Project created</AlertTitle>
+          <AlertDescription>Your brief was ingested successfully.</AlertDescription>
+        </Alert>
       )}
 
       <Suspense fallback={<GapsBoardSkeleton />}>
-        <GapsBoard projectId={project.id} archived={project.status === "archived"} />
+        <GapsBoard projectId={project.id} archived={archived} />
       </Suspense>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">Sources</h2>
-
-        {sourcesResult.error ? (
-          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-            Could not load sources. Refresh to try again.
-          </p>
-        ) : sourcesResult.data.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-zinc-300 px-4 py-8 text-center text-sm text-zinc-500 dark:border-zinc-700">
-            No sources yet.
-          </p>
-        ) : (
-          <ul className="divide-y divide-zinc-200 overflow-hidden rounded-xl border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-950">
-            {sourcesResult.data.map((source) => (
-              <li key={source.id} className="flex flex-col gap-1 px-4 py-3">
-                <div className="flex items-center justify-between gap-4">
-                  <span className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                    {source.title}
-                  </span>
-                  <StatusBadge status={source.processing_status} />
-                </div>
-                <div className="flex flex-wrap gap-x-3 text-xs text-zinc-500">
-                  <span className="capitalize">{source.kind.replace("_", " ")}</span>
-                  <span>{formatDate(source.created_at)}</span>
-                  {typeof source.metadata?.chunk_count === "number" && (
-                    <span>{source.metadata.chunk_count} chunks</span>
+      <Card>
+        <CardHeader>
+          <CardTitle>Sources</CardTitle>
+          <CardDescription>
+            Evidence for this project. Analyze a source to surface assumptions and open questions.
+          </CardDescription>
+          {!sourcesResult.error && sources.length > 0 && (
+            <CardAction>
+              <Badge variant="secondary" className="tabular-nums">
+                {sources.length}
+              </Badge>
+            </CardAction>
+          )}
+        </CardHeader>
+        <CardContent>
+          {sourcesResult.error ? (
+            <Alert variant="destructive">
+              <CircleAlertIcon />
+              <AlertTitle>Could not load sources</AlertTitle>
+              <AlertDescription>Refresh to try again.</AlertDescription>
+            </Alert>
+          ) : sources.length === 0 ? (
+            <p className="rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+              No sources yet.
+            </p>
+          ) : (
+            <ul className="divide-y overflow-hidden rounded-lg border">
+              {sources.map((source) => (
+                <li key={source.id} className="flex flex-col gap-1 px-4 py-3">
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="truncate font-medium">{source.title}</span>
+                    <StatusBadge status={source.processing_status} />
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+                    <span className="capitalize">{source.kind.replace("_", " ")}</span>
+                    <span>{formatDate(source.created_at)}</span>
+                    {typeof source.metadata?.chunk_count === "number" && (
+                      <span>{source.metadata.chunk_count} chunks</span>
+                    )}
+                    {source.metadata?.embedding_status === "pending" && (
+                      <span>Embeddings pending</span>
+                    )}
+                  </div>
+                  {source.processing_status === "failed" && source.processing_error && (
+                    <p className="text-xs text-destructive">{source.processing_error}</p>
                   )}
-                  {source.metadata?.embedding_status === "pending" && (
-                    <span>Embeddings pending</span>
-                  )}
-                </div>
-                {source.processing_status === "failed" && source.processing_error && (
-                  <p className="text-xs text-red-600 dark:text-red-400">{source.processing_error}</p>
-                )}
-                <SourceAnalysisRow source={source} archived={project.status === "archived"} />
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+                  <SourceAnalysisRow source={source} archived={archived} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
 
-const STATUS_STYLES: Record<SourceRow["processing_status"], string> = {
-  pending: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
-  processing: "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300",
-  completed: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300",
-  failed: "bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300",
+const STATUS_VARIANTS: Record<
+  SourceRow["processing_status"],
+  React.ComponentProps<typeof Badge>["variant"]
+> = {
+  pending: "outline",
+  processing: "outline",
+  completed: "secondary",
+  failed: "destructive",
 };
 
 function StatusBadge({ status }: { status: SourceRow["processing_status"] }) {
   return (
-    <span
-      className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${STATUS_STYLES[status]}`}
-    >
+    <Badge variant={STATUS_VARIANTS[status]} className="capitalize">
+      {status === "processing" && <LoaderCircleIcon data-icon="inline-start" className="animate-spin" />}
       {status}
-    </span>
+    </Badge>
   );
 }
 
@@ -174,11 +218,11 @@ function SourceAnalysisRow({ source, archived }: { source: SourceRow; archived: 
 
   if (analysis?.status === "completed") {
     return (
-      <p className="text-xs text-zinc-600 dark:text-zinc-400">
+      <p className="text-xs text-muted-foreground">
         Analyzed: {analysis.assumption_count ?? 0} assumptions, {analysis.gap_count ?? 0} gaps,{" "}
         {analysis.contradiction_count ?? 0} contradictions
         {!!analysis.rejected_count && (
-          <span className="text-amber-700 dark:text-amber-400">
+          <span className="font-medium text-foreground">
             {" "}
             ({analysis.rejected_count} rejected for invalid source references)
           </span>
@@ -194,15 +238,13 @@ function SourceAnalysisRow({ source, archived }: { source: SourceRow; archived: 
 
   return (
     <div className="mt-1 flex items-start justify-between gap-4">
-      <p className="text-xs text-zinc-500">
+      <p className="text-xs text-muted-foreground">
         {running ? (
           "Analysis in progress…"
         ) : abandoned ? (
-          <span className="text-red-600 dark:text-red-400">
-            The previous analysis did not finish.
-          </span>
+          <span className="text-destructive">The previous analysis did not finish.</span>
         ) : analysis?.status === "failed" ? (
-          <span className="text-red-600 dark:text-red-400">
+          <span className="text-destructive">
             Last analysis failed{analysis.error ? `: ${analysis.error}` : "."}
           </span>
         ) : (
